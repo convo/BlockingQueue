@@ -84,7 +84,7 @@ defmodule BlockingQueue do
     {:reply, nil, { max, :queue.in(item, queue) }}
   end
 
-  # send item to a single waiting popper 
+  # send item to a single waiting popper
   def handle_call({:push, item}, _, {max, @empty_queue, :pop, [next|[]]}) do
     send elem(next, 0), {:awaken, item}
     {:reply, nil, {max, @empty_queue}}
@@ -152,12 +152,12 @@ defmodule BlockingQueue do
   # remove all items using predicate function, handling push waiters
   def handle_call({:filter, f}, _, {max, queue, :push, waiters}) when is_list waiters do
     filtered_queue = :queue.filter(f, queue)
-    {still_waiters, filtered_waiters} = Enum.partition waiters, &f.(elem(&1, 1))
+    {still_waiters, filtered_waiters} = Enum.split_with waiters, &f.(elem(&1, 1))
     Enum.each filtered_waiters, &send(elem(elem(&1, 0), 0), :awaken)
     {rest, next} = Enum.split still_waiters, :queue.len(filtered_queue) - max
-    final_queue = Enum.reduce(Enum.reverse(next), filtered_queue, fn({next, item}, q) -> 
+    final_queue = Enum.reduce(Enum.reverse(next), filtered_queue, fn({next, item}, q) ->
       send(elem(next, 0), :awaken)
-      :queue.in(item, q) 
+      :queue.in(item, q)
     end)
     {:reply, nil, (if Enum.empty?(rest), do: {max, final_queue}, else: {max, final_queue, :push, rest}) }
   end
